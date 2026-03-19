@@ -1,0 +1,5 @@
+# Rule definition files contain example bad patterns as string literals — not real issues
+src/rules/definitions/
+# Test fixtures and helpers contain intentionally flawed code
+tests/fixtures/
+tests/helpers/

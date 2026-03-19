@@ -1,0 +1,95 @@
+{
+  // ==========================================================================
+  // AI Code Verifier (.acvrc) — Configuration Reference
+  // ==========================================================================
+  // Supported formats: .acvrc (JSON), .acvrc.yaml, .acvrc.toml, acv.config.ts
+  // Config precedence: CLI flags > .acvrc > env vars > defaults
+  // ==========================================================================
+
+  // --------------------------------------------------------------------------
+  // Rules — set severity per rule: "error" | "warn" | "info" | "off"
+  // --------------------------------------------------------------------------
+  "rules": {
+    // AI-Specific (detect AI hallucinations and code smells)
+    "hallucinated-import": "error",
+    "phantom-api-call": "warn",
+    "outdated-api-usage": "warn",
+    "cargo-cult-pattern": "warn",
+    "over-commented-obvious-code": "info",
+    "inconsistent-naming-convention": "info",
+
+    // Security (detect vulnerabilities)
+    "hardcoded-secret-pattern": "error",
+    "eval-usage": "error",
+    "sql-injection-concat": "error",
+    "insecure-random": "warn",
+    "ssrf-pattern": "warn",
+    "path-traversal": "warn",
+    "prototype-pollution": "warn",
+    "xxe-parsing": "warn",
+    "open-redirect": "warn",
+
+    // Correctness (detect logic bugs)
+    "dead-code-after-return": "warn",
+    "unreachable-branch": "warn",
+    "empty-catch-block": "warn",
+    "placeholder-todo-stub": "warn",
+    "unused-import": "info",
+    "type-coercion-risk": "warn",
+    "missing-null-check": "warn",
+    "incomplete-error-handling": "warn"
+  },
+
+  // --------------------------------------------------------------------------
+  // Categories — enable/disable entire rule categories
+  // --------------------------------------------------------------------------
+  "categories": {
+    "ai-specific": true,
+    "security": true,
+    "correctness": true
+  },
+
+  // --------------------------------------------------------------------------
+  // Languages — which languages to analyze (auto-detected if omitted)
+  // --------------------------------------------------------------------------
+  "languages": ["javascript", "typescript", "python", "go"],
+
+  // --------------------------------------------------------------------------
+  // Ignore — glob patterns for files to skip (in addition to .gitignore)
+  // --------------------------------------------------------------------------
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "dist/**",
+    "generated/**",
+    "**/*.min.js"
+  ],
+
+  // --------------------------------------------------------------------------
+  // Scan settings
+  // --------------------------------------------------------------------------
+  "failOn": "critical",       // Exit 1 if findings >= severity: critical | high | medium | low | info
+  "maxWarnings": -1,          // Max warnings before exit 1 (-1 = unlimited)
+  "cache": true,              // Enable content-hash caching (SQLite)
+  "maxWorkers": 4,            // Worker thread pool size (default: cpus - 1, min 2, max 8)
+  "maxFileSize": "1mb",       // Skip files larger than this
+  "parseTimeout": 5000,       // Per-file parse timeout in ms
+
+  // --------------------------------------------------------------------------
+  // Git hooks — configure behavior for pre-commit / pre-push
+  // --------------------------------------------------------------------------
+  "hooks": {
+    "pre-commit": {
+      "failOn": "critical",
+      "staged": true
+    },
+    "pre-push": {
+      "failOn": "high"
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // Output format — pretty | json | sarif | junit | github
+  // --------------------------------------------------------------------------
+  "format": "pretty"
+}

@@ -1,0 +1,344 @@
+{
+  "projectTitle": "AI Code Verifier (acv) MVP",
+  "summary": "Build a TypeScript CLI tool (npx ai-code-verifier check .) that scans codebases for AI-hallucinated packages, phantom APIs, security antipatterns, and outdated patterns. MVP delivers: project scaffold, yargs CLI, regex + TS Compiler API import parser, npm registry verification, 3 detection rules, chalk-formatted output, and vitest test suite.",
+  "conflict_analysis": "No file-system conflicts detected. All tasks that can execute in parallel have disjoint file_scope entries. No dependency additions required.",
+  "phases": [
+    {
+      "name": "Phase 1 — Scaffold & Core Types",
+      "description": "Initialize the project structure, configure TypeScript/ESLint/Vitest, define all core interfaces and types that every subsequent module depends on.",
+      "tasks": [
+        {
+          "title": "Project scaffold and toolchain setup",
+          "description": "Create ai-code-verifier/ directory with package.json (name: ai-code-verifier, bin: {acv: ./dist/cli/index.js}), tsconfig.json (target ES2022, module Node16, strict), .eslintrc.json, .prettierrc, .gitignore, vitest.config.ts (80% coverage thresholds), and LICENSE. Runtime deps: yargs, chalk, fast-glob, ignore. Dev deps: typescript, vitest, @types/node, @types/yargs, eslint, prettier. Add scripts: build, dev, test, typecheck, lint. Create src/ directory tree: cli/, core/, parser/, verifier/, rules/, output/.",
+          "type": "infra",
+          "priority": "high",
+          "agent": "Staff Engineer",
+          "dependencies": [],
+          "file_scope": [
+            "ai-code-verifier/package.json",
+            "ai-code-verifier/tsconfig.json",
+            "ai-code-verifier/.eslintrc.json",
+            "ai-code-verifier/.prettierrc",
+            "ai-code-verifier/.gitignore",
+            "ai-code-verifier/vitest.config.ts",
+            "ai-code-verifier/LICENSE"
+          ]
+        },
+        {
+          "title": "Core type definitions",
+          "description": "Create src/core/types.ts with all shared interfaces: Finding (ruleId, ruleName, severity: 'error'|'warning'|'info', filePath, line, column, message, suggestedFix?, codeSnippet?), Rule (id, name, description, category: 'hallucination'|'phantom-api'|'security'|'outdated', severity, check(context): Finding[]), ScanContext (filePath, sourceCode, imports: ImportInfo[]), ImportInfo (source, specifiers, isDynamic, line), ScanResult (findings: Finding[], filesScanned, rulesApplied, elapsed), AcvConfig (include, exclude, rules, severity, output: 'text'|'json'). Also export type guards and severity ordering utility.",
+          "type": "design",
+          "priority": "high",
+          "agent": "Staff Engineer",
+          "dependencies": [
+            "Project scaffold and toolchain setup"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/core/types.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 2 — CLI Shell & Import Parser",
+      "description": "Build the yargs-based CLI entry point and the import extraction engine using regex + TypeScript Compiler API. These are the two foundational pieces the entire tool sits on. All three tasks in this phase have disjoint file scopes and can safely run in parallel.",
+      "tasks": [
+        {
+          "title": "CLI entry point with yargs",
+          "description": "Create src/cli/index.ts as the main entry (#!/usr/bin/env node shebang). Implement yargs with 'check' command: acv check <path> [--format text|json] [--severity error|warning|info] [--ignore <glob>] [--no-color] [--verbose]. Wire up config loading from .acvrc / .acvrc.json / acv.config.js via cosmiconfig pattern (simple manual implementation, no extra dep). Parse args, merge with config, call scanner, format output, set exit code. Include helpful --help text and version from package.json.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Core type definitions"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/cli/index.ts",
+            "ai-code-verifier/src/cli/config.ts"
+          ]
+        },
+        {
+          "title": "File discovery module",
+          "description": "Create src/cli/discovery.ts. Given a target path, use fast-glob to find all .ts, .tsx, .js, .jsx, .mjs, .cjs files. Respect .gitignore using the 'ignore' package. Support user-provided include/exclude glob patterns from config. Return array of absolute file paths sorted for deterministic output. Handle edge cases: path doesn't exist, no files found, permission errors.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Core type definitions"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/cli/discovery.ts"
+          ]
+        },
+        {
+          "title": "Import extractor using regex + TS Compiler API",
+          "description": "Create src/parser/import-extractor.ts. Two-strategy approach: (1) Fast regex pass for common patterns: import X from 'pkg', require('pkg'), import('pkg'), export * from 'pkg'. Regex handles: named/default/namespace imports, destructured requires, dynamic imports. (2) TypeScript Compiler API pass using ts.createSourceFile() for accurate AST — walk ts.SyntaxKind.ImportDeclaration, ts.SyntaxKind.CallExpression (require/import), ts.SyntaxKind.ExportDeclaration. Extract ImportInfo: {source, specifiers (named + default), isTypeOnly, isDynamic, line, column}. Separate bare specifiers (npm packages) from relative paths. Handle scoped packages (@org/pkg). Return deduplicated ImportInfo[].",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Core type definitions"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/parser/import-extractor.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 3 — npm Registry Verifier & Rules Engine",
+      "description": "Build the npm registry checker to detect hallucinated packages, implement the rule runner framework, and create 3 MVP detection rules. Tasks 6+7 run in parallel (disjoint scopes), then tasks 8+9+10 run in parallel after their deps resolve.",
+      "tasks": [
+        {
+          "title": "npm registry verifier",
+          "description": "Create src/verifier/npm-registry.ts. For each bare import specifier extracted from code, check if the package exists on the npm registry by calling https://registry.npmjs.org/<package-name> with a HEAD request (fast, low bandwidth). Use native fetch() (Node 18+). Implement: (1) In-memory LRU cache (Map with max 1000 entries) so repeated packages aren't re-checked. (2) Batch checking with concurrency limit (max 10 parallel requests). (3) Timeout per request (5s). (4) Graceful offline handling — skip verification with warning if registry unreachable. (5) Distinguish 404 (package doesn't exist = hallucinated) vs 200 (exists). Return Map<string, {exists: boolean, checkedAt: Date}>. Also cross-check against package.json dependencies if present in project.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Import extractor using regex + TS Compiler API"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/verifier/npm-registry.ts"
+          ]
+        },
+        {
+          "title": "Rule runner framework",
+          "description": "Create src/rules/rule-runner.ts. Implements: (1) RuleRegistry — loads all rules from src/rules/definitions/, each rule exports a Rule object matching the Rule interface. (2) run(files, config) — for each file: read source, extract imports via import-extractor, build ScanContext, run each enabled rule's check() function, collect findings. (3) Severity filtering — skip findings below configured severity threshold. (4) Rule enable/disable from config. (5) Aggregate all findings into ScanResult with stats. Keep the runner synchronous per file but allow async rules (npm registry check is async).",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Import extractor using regex + TS Compiler API",
+            "Core type definitions"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/rules/rule-runner.ts"
+          ]
+        },
+        {
+          "title": "Rule: hallucinated-package",
+          "description": "Create src/rules/definitions/hallucinated-package.ts. Rule ID: 'acv/hallucinated-package', severity: 'error'. For each bare import that is NOT in the project's package.json dependencies AND does not exist on npm registry (via npm-registry verifier), emit a Finding. Common false-positive handling: skip Node.js built-in modules (fs, path, crypto, etc — use module.builtinModules), skip relative imports, skip TypeScript path aliases. Suggested fix: 'Package \"X\" does not exist on npm. Did you mean \"Y\"?' (basic Levenshtein distance against top-1000 npm packages list, or just flag without suggestion for MVP).",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Rule runner framework",
+            "npm registry verifier"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/rules/definitions/hallucinated-package.ts"
+          ]
+        },
+        {
+          "title": "Rule: phantom-api-usage",
+          "description": "Create src/rules/definitions/phantom-api-usage.ts. Rule ID: 'acv/phantom-api', severity: 'warning'. Detect usage of non-existent APIs on known objects. MVP scope: (1) Node.js built-in API misuse — e.g., fs.readFilePromise (doesn't exist, should be fs.promises.readFile), crypto.generateHash (doesn't exist). Maintain a curated map of common Node.js module exports. (2) Common hallucinated method patterns via regex: .toJSON() on non-JSON types, Array.flatDeep(), String.toCapitalize(), Promise.any() in old targets. Check via regex matching after import resolution.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Rule runner framework"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/rules/definitions/phantom-api-usage.ts"
+          ]
+        },
+        {
+          "title": "Rule: unsafe-pattern",
+          "description": "Create src/rules/definitions/unsafe-pattern.ts. Rule ID: 'acv/unsafe-pattern', severity: 'warning'. Regex-based detection of common AI-generated security antipatterns: (1) eval() / new Function() usage. (2) innerHTML assignment without sanitization. (3) SQL string concatenation patterns (SELECT.*\\+ or template literals with SQL keywords). (4) Hardcoded secrets (API_KEY=, password=, token= followed by string literals). (5) Disabled TLS verification (rejectUnauthorized: false, NODE_TLS_REJECT_UNAUTHORIZED). Each pattern has a descriptive message and suggested fix. Use regex with line tracking to report exact locations.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Rule runner framework"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/rules/definitions/unsafe-pattern.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 4 — Output Formatter & Scanner Orchestration",
+      "description": "Build the pretty chalk-based output formatter and wire everything together into the main scanner orchestrator. The formatter can run in parallel with rule definitions (tasks 8, 9, 10) since file scopes are disjoint.",
+      "tasks": [
+        {
+          "title": "Output formatter with chalk",
+          "description": "Create src/output/formatter.ts. Two output modes: (1) Text mode (default) — grouped by file, colored severity (chalk.red for error, chalk.yellow for warning, chalk.blue for info), file path with line:column, rule ID in dim text, code snippet with arrow pointing to issue, suggested fix in green, summary footer with counts (✖ N errors, ⚠ N warnings, ℹ N info) and timing. (2) JSON mode — output ScanResult as formatted JSON to stdout for CI consumption. Support --no-color via chalk.level = 0. Handle zero-findings case with a celebratory message (✔ No issues found!).",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "Rule runner framework",
+            "Core type definitions"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/output/formatter.ts"
+          ]
+        },
+        {
+          "title": "Scanner orchestrator",
+          "description": "Create src/engine/scanner.ts — the main coordinator. scan(targetPath, config) → ScanResult. Steps: (1) Discover files via discovery module. (2) Read each file. (3) Parse imports via import-extractor. (4) Batch-verify all unique bare imports against npm registry (single batched call). (5) Build ScanContext per file. (6) Run all enabled rules via rule-runner. (7) Sort findings by severity then file path. (8) Compute stats and elapsed time. (9) Return ScanResult. Handle errors gracefully — file read errors become warning findings, not crashes.",
+          "type": "feature",
+          "priority": "high",
+          "agent": "Senior Developer",
+          "dependencies": [
+            "File discovery module",
+            "Rule runner framework",
+            "npm registry verifier",
+            "Output formatter with chalk"
+          ],
+          "file_scope": [
+            "ai-code-verifier/src/engine/scanner.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 5 — Test Suite",
+      "description": "Comprehensive test coverage with vitest. Test tasks have disjoint file scopes in separate tests/ subdirectories and can safely run in parallel with each other and with remaining source tasks from earlier phases.",
+      "tasks": [
+        {
+          "title": "Test fixtures with vulnerable AI-generated code",
+          "description": "Create tests/fixtures/ directory with intentionally flawed files that trigger each rule: (1) hallucinated-imports.ts — imports non-existent packages (react-magic-form, super-validator, ai-helper-utils). (2) phantom-apis.ts — uses non-existent Node.js APIs (fs.readFilePromise, crypto.generateHash, path.resolveAll). (3) unsafe-patterns.ts — contains eval(), innerHTML, SQL concatenation, hardcoded API keys, disabled TLS. (4) clean-file.ts — a perfectly clean file that should produce zero findings. (5) mixed-issues.ts — combination of all issue types.",
+          "type": "test",
+          "priority": "high",
+          "agent": "QA Engineer",
+          "dependencies": [
+            "Rule: hallucinated-package",
+            "Rule: phantom-api-usage",
+            "Rule: unsafe-pattern"
+          ],
+          "file_scope": [
+            "ai-code-verifier/tests/fixtures/hallucinated-imports.ts",
+            "ai-code-verifier/tests/fixtures/phantom-apis.ts",
+            "ai-code-verifier/tests/fixtures/unsafe-patterns.ts",
+            "ai-code-verifier/tests/fixtures/clean-file.ts",
+            "ai-code-verifier/tests/fixtures/mixed-issues.ts"
+          ]
+        },
+        {
+          "title": "Unit tests for import extractor",
+          "description": "Create tests/parser/import-extractor.test.ts. Test cases: (1) ES module default import. (2) Named imports. (3) Namespace import (import * as). (4) Dynamic import(). (5) CommonJS require(). (6) Re-exports (export * from). (7) Type-only imports (import type). (8) Scoped packages (@org/pkg). (9) Relative imports are correctly categorized. (10) Multiple imports on same line. (11) Commented-out imports are skipped. (12) String imports inside non-import contexts are skipped. Target: 100% branch coverage on import-extractor.ts.",
+          "type": "test",
+          "priority": "high",
+          "agent": "QA Engineer",
+          "dependencies": [
+            "Import extractor using regex + TS Compiler API"
+          ],
+          "file_scope": [
+            "ai-code-verifier/tests/parser/import-extractor.test.ts"
+          ]
+        },
+        {
+          "title": "Unit tests for npm registry verifier",
+          "description": "Create tests/verifier/npm-registry.test.ts. Mock fetch() to avoid real network calls. Test: (1) Package exists (200 response) → exists: true. (2) Package missing (404) → exists: false. (3) Network error → graceful degradation. (4) Cache hit — second call for same package doesn't trigger fetch. (5) Concurrent batch limits. (6) Timeout handling. (7) Scoped packages URL encoding. (8) Built-in modules are skipped before fetch.",
+          "type": "test",
+          "priority": "high",
+          "agent": "QA Engineer",
+          "dependencies": [
+            "npm registry verifier"
+          ],
+          "file_scope": [
+            "ai-code-verifier/tests/verifier/npm-registry.test.ts"
+          ]
+        },
+        {
+          "title": "Unit tests for each rule",
+          "description": "Create tests/rules/hallucinated-package.test.ts, phantom-api-usage.test.ts, unsafe-pattern.test.ts. For each rule: test positive detection (known bad patterns trigger findings), negative detection (clean code produces no findings), correct severity, correct line numbers, correct messages and suggested fixes. Use fixture files as inputs. Test edge cases: empty files, files with only comments, minified code.",
+          "type": "test",
+          "priority": "high",
+          "agent": "QA Engineer",
+          "dependencies": [
+            "Rule: hallucinated-package",
+            "Rule: phantom-api-usage",
+            "Rule: unsafe-pattern"
+          ],
+          "file_scope": [
+            "ai-code-verifier/tests/rules/hallucinated-package.test.ts",
+            "ai-code-verifier/tests/rules/phantom-api-usage.test.ts",
+            "ai-code-verifier/tests/rules/unsafe-pattern.test.ts"
+          ]
+        },
+        {
+          "title": "Integration test for full scan pipeline",
+          "description": "Create tests/integration/full-scan.test.ts. Run the complete scanner.scan() on tests/fixtures/ directory. Verify: (1) All expected findings are reported for each fixture file. (2) Clean file produces zero findings. (3) Exit code mapping is correct (findings → 1, no findings → 0). (4) JSON output is valid parseable JSON. (5) Text output contains expected chalk formatting tokens. (6) Elapsed time is reported. (7) File count matches expectations. Mock npm registry calls in integration tests.",
+          "type": "test",
+          "priority": "high",
+          "agent": "QA Engineer",
+          "dependencies": [
+            "Scanner orchestrator",
+            "Output formatter with chalk",
+            "Test fixtures with vulnerable AI-generated code"
+          ],
+          "file_scope": [
+            "ai-code-verifier/tests/integration/full-scan.test.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 6 — CI/CD & Package Publishing",
+      "description": "Configure GitHub Actions CI pipeline, npm publishing setup, and documentation for the package. All three tasks have disjoint file scopes and can run in parallel.",
+      "tasks": [
+        {
+          "title": "GitHub Actions CI workflow",
+          "description": "Create .github/workflows/ci.yml for the ai-code-verifier package. Jobs: (1) lint — run eslint. (2) typecheck — run tsc --noEmit. (3) test — run vitest with coverage, upload coverage report. (4) build — run tsc, verify dist/ output. Matrix: Node 18, 20, 22. Trigger on push to main and PRs. Cache node_modules. Set working-directory to ai-code-verifier/ for all steps.",
+          "type": "infra",
+          "priority": "medium",
+          "agent": "DevOps Engineer",
+          "dependencies": [
+            "Integration test for full scan pipeline"
+          ],
+          "file_scope": [
+            "ai-code-verifier/.github/workflows/ci.yml"
+          ]
+        },
+        {
+          "title": "npm package configuration",
+          "description": "Finalize package.json for npm publishing: set 'files' field to include only dist/ and README.md, set 'main' and 'types' fields, verify 'bin' field points to correct dist path, add 'prepublishOnly' script that runs build+test+typecheck, add 'engines' field (node >=18). Create a minimal .npmignore. Ensure 'npx ai-code-verifier check .' works by testing the bin entry. Add keywords for npm discoverability: ai, code-verification, hallucination, security, linter.",
+          "type": "infra",
+          "priority": "medium",
+          "agent": "DevOps Engineer",
+          "dependencies": [
+            "Scanner orchestrator",
+            "Project scaffold and toolchain setup"
+          ],
+          "file_scope": [
+            "ai-code-verifier/package.json",
+            "ai-code-verifier/.npmignore"
+          ]
+        },
+        {
+          "title": "README and usage documentation",
+          "description": "Create ai-code-verifier/README.md with: (1) One-line description and badge placeholders. (2) Quick start: npx ai-code-verifier check . (3) Installation: npm install -g ai-code-verifier. (4) CLI usage with all flags. (5) Configuration (.acvrc example). (6) Rules reference table (ID, description, severity, auto-fixable). (7) Example terminal output (without actual ANSI, just text representation). (8) Exit codes. (9) Contributing link. (10) License. Keep it concise — under 200 lines.",
+          "type": "docs",
+          "priority": "medium",
+          "agent": "DevOps Engineer",
+          "dependencies": [
+            "Scanner orchestrator"
+          ],
+          "file_scope": [
+            "ai-code-verifier/README.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "agents_needed": [
+    "Staff Engineer",
+    "Senior Developer",
+    "QA Engineer",
+    "DevOps Engineer"
+  ],
+  "parallel_safety_notes": [
+    "Phase 2: Tasks 3/4/5 (CLI entry, file discovery, import extractor) — safe to parallelize, all in separate directories (cli/, cli/, parser/)",
+    "Phase 3: Tasks 6/7 (npm verifier, rule runner) — safe to parallelize, separate directories (verifier/, rules/)",
+    "Phase 3: Tasks 8/9/10 + Phase 4 Task 11 (three rules + formatter) — safe to parallelize after task 7 completes, all in separate files under rules/definitions/ and output/",
+    "Phase 5: Tasks 13/14/15/16 (fixtures, import tests, verifier tests, rule tests) — safe to parallelize, all in separate tests/ subdirectories",
+    "Phase 5: Task 14 (import extractor tests) can start as early as after Task 5, running alongside Phase 3 source tasks with no conflicts",
+    "Phase 5: Task 15 (npm verifier tests) can start as early as after Task 6, running alongside later Phase 3 tasks with no conflicts",
+    "Phase 6: Tasks 18/19/20 (CI, npm config, README) — safe to parallelize, disjoint files (.github/, package.json, README.md)",
+    "package.json conflict between Task 1 and Task 19 is already resolved by explicit dependency"
+  ]
+}

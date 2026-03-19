@@ -1,0 +1,330 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Output Formatting Snapshots > JSON Formatter > should match snapshot for empty results 1`] = `
+"{
+  "version": "0.1.0",
+  "timestamp": "2026-03-18T00:00:00.000Z",
+  "config": {
+    "failOn": "error",
+    "rules": 35,
+    "languages": [
+      "typescript",
+      "javascript"
+    ]
+  },
+  "scan": {
+    "files": 15,
+    "durationMs": 234,
+    "cached": 5,
+    "parsed": 10,
+    "skipped": 0
+  },
+  "findings": [],
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "info": 0,
+    "fixable": 0,
+    "categories": {
+      "ai-specific": 0,
+      "security": 0,
+      "correctness": 0
+    }
+  },
+  "exitCode": 0
+}"
+`;
+
+exports[`Output Formatting Snapshots > JSON Formatter > should match snapshot for mixed findings with fixes 1`] = `
+"{
+  "version": "0.1.0",
+  "timestamp": "2026-03-18T00:00:00.000Z",
+  "config": {
+    "failOn": "error",
+    "rules": 35,
+    "languages": [
+      "typescript",
+      "javascript"
+    ]
+  },
+  "scan": {
+    "files": 15,
+    "durationMs": 234,
+    "cached": 5,
+    "parsed": 10,
+    "skipped": 0
+  },
+  "findings": [
+    {
+      "ruleId": "hardcoded-secret-pattern",
+      "severity": "error",
+      "category": "security",
+      "message": "Hardcoded API key detected",
+      "filePath": "/src/config.ts",
+      "line": 10,
+      "column": 1,
+      "endLine": 10,
+      "endColumn": 55,
+      "codeSnippet": "const API_KEY = 'sk-1234567890abcdef';",
+      "fix": null,
+      "suggestion": null,
+      "owaspRef": null,
+      "confidence": 0.95
+    },
+    {
+      "ruleId": "outdated-api-usage",
+      "severity": "warn",
+      "category": "ai-specific",
+      "message": "url.parse() is deprecated — use new URL() instead",
+      "filePath": "/src/http.ts",
+      "line": 7,
+      "column": 10,
+      "endLine": 7,
+      "endColumn": 30,
+      "codeSnippet": "url.parse(urlStr)",
+      "fix": {
+        "from": "url.parse(urlStr)",
+        "to": "new URL(urlStr)"
+      },
+      "suggestion": null,
+      "owaspRef": null,
+      "confidence": 0.88
+    },
+    {
+      "ruleId": "unused-import",
+      "severity": "info",
+      "category": "correctness",
+      "message": "Import 'join' is never used",
+      "filePath": "/src/utils.ts",
+      "line": 1,
+      "column": 10,
+      "endLine": 1,
+      "endColumn": 14,
+      "codeSnippet": "import { join } from 'path';",
+      "fix": null,
+      "suggestion": null,
+      "owaspRef": null,
+      "confidence": 1
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 1,
+    "info": 1,
+    "fixable": 1,
+    "categories": {
+      "ai-specific": 1,
+      "security": 1,
+      "correctness": 1
+    }
+  },
+  "exitCode": 1
+}"
+`;
+
+exports[`Output Formatting Snapshots > JSON Formatter > should match snapshot for single error finding 1`] = `
+"{
+  "version": "0.1.0",
+  "timestamp": "2026-03-18T00:00:00.000Z",
+  "config": {
+    "failOn": "error",
+    "rules": 35,
+    "languages": [
+      "typescript",
+      "javascript"
+    ]
+  },
+  "scan": {
+    "files": 15,
+    "durationMs": 234,
+    "cached": 5,
+    "parsed": 10,
+    "skipped": 0
+  },
+  "findings": [
+    {
+      "ruleId": "eval-usage",
+      "severity": "error",
+      "category": "security",
+      "message": "Direct eval() usage is dangerous — use safer alternatives",
+      "filePath": "/src/utils.ts",
+      "line": 42,
+      "column": 5,
+      "endLine": 42,
+      "endColumn": 25,
+      "codeSnippet": "eval(userInput)",
+      "fix": null,
+      "suggestion": "Use JSON.parse() for JSON data or Function() for expressions",
+      "owaspRef": "A03:2021-Injection",
+      "confidence": 0.99
+    }
+  ],
+  "summary": {
+    "errors": 1,
+    "warnings": 0,
+    "info": 0,
+    "fixable": 0,
+    "categories": {
+      "ai-specific": 0,
+      "security": 1,
+      "correctness": 0
+    }
+  },
+  "exitCode": 1
+}"
+`;
+
+exports[`Output Formatting Snapshots > SARIF Formatter > should match snapshot for empty results 1`] = `
+"{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ai-code-verifier",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/ai-code-verifier/acv",
+          "rules": []
+        }
+      },
+      "results": [],
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "endTimeUtc": "2026-03-18T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}"
+`;
+
+exports[`Output Formatting Snapshots > SARIF Formatter > should match snapshot for security findings 1`] = `
+"{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ai-code-verifier",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/ai-code-verifier/acv",
+          "rules": [
+            {
+              "id": "sql-injection-concat",
+              "shortDescription": {
+                "text": "SQL query built via string concatenation — use parameterized queries"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "category": "security"
+              }
+            },
+            {
+              "id": "insecure-random",
+              "shortDescription": {
+                "text": "Math.random() is not cryptographically secure"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "category": "security"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "sql-injection-concat",
+          "level": "error",
+          "message": {
+            "text": "SQL query built via string concatenation — use parameterized queries"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/src/db.ts"
+                },
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 3,
+                  "endLine": 25,
+                  "endColumn": 65
+                }
+              }
+            }
+          ],
+          "properties": {
+            "confidence": 0.97
+          }
+        },
+        {
+          "ruleId": "insecure-random",
+          "level": "warning",
+          "message": {
+            "text": "Math.random() is not cryptographically secure"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/src/auth.ts"
+                },
+                "region": {
+                  "startLine": 15,
+                  "startColumn": 10,
+                  "endLine": 15,
+                  "endColumn": 25
+                }
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "Replace \\"Math.random()\\" with \\"crypto.randomUUID()\\""
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "/src/auth.ts"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 15,
+                        "startColumn": 10,
+                        "endLine": 15,
+                        "endColumn": 25
+                      },
+                      "insertedContent": {
+                        "text": "crypto.randomUUID()"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "confidence": 0.9
+          }
+        }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "endTimeUtc": "2026-03-18T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}"
+`;

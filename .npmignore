@@ -1,0 +1,52 @@
+# Source files (dist/ is published, not src/)
+src/
+tests/
+docs/
+
+# Config files not needed at runtime
+tsconfig.json
+vitest.config.ts
+.eslintrc.json
+.prettierrc
+.acvrc.example
+.env
+.env.*
+!.env.example
+
+# Development artifacts
+coverage/
+.nyc_output/
+*.tsbuildinfo
+.eslintcache
+.acv-cache/
+
+# CI/CD and repo management
+.github/
+.git/
+.gitignore
+Makefile
+Dockerfile
+.dockerignore
+docker-compose*.yml
+scripts/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package tarballs
+*.tgz
+
+# Temporary
+tmp/
+temp/
+
+# Documentation source (README.md IS included via files field)
+CONTRIBUTING.md
+CHANGELOG.md
+HYGIENE-REPORT.md
+.claude/
