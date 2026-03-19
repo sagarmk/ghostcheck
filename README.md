@@ -4,6 +4,13 @@
 
 <p align="center"><b>Your AI writes code. This catches what it gets wrong.</b></p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/ghostcheck"><img src="https://img.shields.io/npm/v/ghostcheck?color=blue&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/ghostcheck"><img src="https://img.shields.io/npm/dm/ghostcheck?color=green" alt="npm downloads"></a>
+  <a href="https://github.com/sagarmk/ghostcheck/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-brightgreen" alt="license"></a>
+  <a href="https://github.com/sagarmk/ghostcheck"><img src="https://img.shields.io/github/stars/sagarmk/ghostcheck?style=social" alt="GitHub stars"></a>
+</p>
+
 Hallucinated packages. Phantom APIs. Insecure patterns. All caught before you commit — offline, zero-config, under 2 seconds.
 
 ---
@@ -145,8 +152,6 @@ git clone https://github.com/sagarmk/ghostcheck.git
 cd ghostcheck
 npm install && npm test
 ```
-
-See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for details.
 
 ## License
 
